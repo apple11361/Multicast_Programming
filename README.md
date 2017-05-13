@@ -1,7 +1,7 @@
 # Multicast_Programming
 Multicast_Programming homework
 
-#使用說明
+# 使用說明
 編譯方法：
 gcc lab2.c -o <filename>
 
