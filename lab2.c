@@ -237,6 +237,25 @@ int main(int argc, char *argv[])
             printf("Binding socke OK.\n");
         }
 
+        /*************加入 multicast group 226.1.1.1***************/
+        group.imr_multiaddr.s_addr = inet_addr("226.1.1.1");
+        group.imr_interface.s_addr = htonl(INADDR_ANY);
+        if(setsockopt(sock_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group))<0)
+        {
+            printf("Adding multicast group failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Adding multicast group OK.\n");
+        }
+
+        /*********************準備接收資料************************/
+        printf("Ready to receive...\n");
+
+        /**********************先接收檔名*************************/
+        
+    
 
 
     }
