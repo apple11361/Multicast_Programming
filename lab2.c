@@ -227,14 +227,14 @@ int main(int argc, char *argv[])
         my_addr.sin_port = htons(8787);
 
         //bind
-        if(bind(sock_fd, (struct sockaddr *)&group_addr, sizeof(group_addr))<0)
+        if(bind(sock_fd, (struct sockaddr *)&my_addr, sizeof(my_addr))<0)
         {
             printf("Binding socket failed.\n");
             exit(1);
         }
         else
         {
-            printf("Binding socke OK.\n");
+            printf("Binding socket OK.\n");
         }
 
         /*************加入 multicast group 226.1.1.1***************/
@@ -254,8 +254,28 @@ int main(int argc, char *argv[])
         printf("Ready to receive...\n");
 
         /**********************先接收檔名*************************/
-        
-    
+        if(read(sock_fd, buffer, BUFFER_SIZE)<0)
+        {
+            printf("Receiving file_name failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Receiving file_name OK.\n");
+        }
+printf("%s\n", buffer);
+
+        //開檔
+        fp = fopen(buffer, "wb");
+        if(fp==NULL)
+        {
+            printf("fopen() failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("fopen() OK.\n");
+        }
 
 
     }
