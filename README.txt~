@@ -8,9 +8,7 @@ Multicast_Programming homework
 gcc lab2.c -o <filename>
 
 執行方法：
-./<execute filename> <server or client> <multicast or unicast> (IP) (file_name)
+./<execute filename> <server or client> <multicast or unicast> (IP)
 
 如果是 unicast 且是 client，需設定要連線的 server IP
-
-如果是執行 multicast server 但沒有先執行 multicast client server會卡住沒反應
 
