@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
         my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
         my_addr.sin_port = htons(8787);
 
-        //setsockopt
+        //setsockopt 才可以使用重複port
         if(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse))<0)
         {
             printf("Setting socket failed.\n");
@@ -197,9 +197,54 @@ int main(int argc, char *argv[])
     /****************client multicast receive file***************/
     else if(!mode && role)
     {
+        /*********Create a datagram socket to receive data**********/
+        sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if(sock_fd<0)
+        {
+            printf("Opening datagram socket failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Opening datagram socket OK.\n");
+        }
+
+        /**************setsockopt 才可以使用重複port***************/
+        if(setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse))<0)
+        {
+            printf("Setting socket failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Setting socket OK.\n");
+        }
+
+        /************設定本地端位址結構，以及socket***************/
+        memset((char *)&my_addr, 0, sizeof(my_addr));
+        my_addr.sin_family = AF_INET;
+        my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        my_addr.sin_port = htons(8787);
+
+        //bind
+        if(bind(sock_fd, (struct sockaddr *)&group_addr, sizeof(group_addr))<0)
+        {
+            printf("Binding socket failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Binding socke OK.\n");
+        }
+
+
 
     }
 
+    /***********server unicast multi_thread sned file************/
+    else if(mode && !role)
+    {
+    }
 
     return 0;
 }
