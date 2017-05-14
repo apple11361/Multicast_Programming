@@ -166,8 +166,31 @@ int main(int argc, char *argv[])
             printf("Sending file_name: %s OK.\n", buffer);
         }
 
+        /*********再傳檔案內容*********/
+        while(!feof(fp))
+        {
+            //傳送
+            fread(buffer, sizeof(char), BUFFER_SIZE, fp);
+            if(sendto(sock_fd, buffer, strlen(buffer), 0, (struct sockaddr *)&group_addr, sizeof(group_addr))<0)
+            {
+                printf("Sending file failed.\n");
+                exit(1);
+            }
 
-        
+            //check
+            if(read(sock_fd, buffer, BUFFER_SIZE)<0)
+            {
+                printf("Reading check failed.\n");
+                exit(1);
+            }
+            else
+            {
+                printf("Sending file OK.\n");
+            }
+        }
+
+        fclose(fp);
+        close(sock_fd);
     
     }
     
