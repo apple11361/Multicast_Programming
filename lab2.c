@@ -178,8 +178,8 @@ int main(int argc, char *argv[])
         while(!feof(fp))
         {
             //傳送
-            fread(buffer, sizeof(char), BUFFER_SIZE, fp);
-            if(sendto(sock_fd, buffer, strlen(buffer), 0, (struct sockaddr *)&group_addr, sizeof(group_addr))<0)
+            temp = fread(buffer, sizeof(char), BUFFER_SIZE, fp);
+            if(sendto(sock_fd, buffer, temp, 0, (struct sockaddr *)&group_addr, sizeof(group_addr))<0)
             {
                 printf("Sending file failed.\n");
                 exit(1);
@@ -191,12 +191,9 @@ int main(int argc, char *argv[])
                 printf("Reading check failed.\n");
                 exit(1);
             }
-            else
-            {
-                printf("Sending file OK.\n");
-            }
         }
 
+        printf("Sending file OK.\n");
         fclose(fp);
         close(sock_fd);
     
@@ -296,10 +293,6 @@ int main(int argc, char *argv[])
                 printf("Receiving file_name failed.\n");
                 exit(1);
             }
-            else
-            {
-                printf("Receiving file_name OK.\n");
-            }
             buffer[temp] = '\0';        //完全不知道為什麼不加這個會錯，好想知道..........
             fwrite(buffer, sizeof(char), temp, fp);
 
@@ -310,6 +303,7 @@ int main(int argc, char *argv[])
             }
         }
 
+        printf("Receiving file OK.\n");
         fclose(fp);
         close(sock_fd);
 
