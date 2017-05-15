@@ -1,8 +1,11 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <pthread.h>
 
 #define BUFFER_SIZE 256
@@ -11,23 +14,26 @@
 void *connection_handler(void *para);
 
 
+char buffer[BUFFER_SIZE];
+char file_name[256];
+
 int main(int argc, char *argv[])
 {
     int reuse = 1;
     int temp;
-    char buffer[BUFFER_SIZE];
     FILE *fp;                           //檔案指標
     int sock_fd, client_fd;
     struct sockaddr_in group_addr;      //multicast 的 group 位址結構
     struct sockaddr_in my_addr;         //本地端位址結構
     struct sockaddr_in client_addr;     //客戶端位址結構
+    struct sockaddr_in server_addr;     //伺服器端位址結構
     struct ip_mreq group;               //設定multicast的group
     pthread_t thread_id;
 
     /*********程式參數*********/
     int mode;           //0:multicast, 1:unicast
     int role;           //0:server, 1:client
-    char file_name[256]; 
+    struct hostent *ip; //存IP
 
     /******************檢查、設定參數******************/
     if(argc<3)
@@ -76,7 +82,16 @@ int main(int argc, char *argv[])
         printf("執行範例：./<執行檔名> <server or client> <multicast or unicast> (IP) (file_name)\n");
         exit(1);
     }
-    //...
+    else if(role && mode)
+    {
+        ip = gethostbyname(argv[3]);
+        if(ip==NULL)
+        {
+            printf("Setting IP failed.\n");
+            printf("執行範例：./<執行檔名> <server or client> <multicast or unicast> (IP) (file_name)\n");
+            exit(1);
+        }
+    }
 
     //設定要傳送的檔案
     if(!role && argc!=4)
@@ -137,7 +152,7 @@ int main(int argc, char *argv[])
         }
 
         //bind
-        if(bind(sock_fd, (struct sockaddr *)&group_addr, sizeof(group_addr))<0)
+        if(bind(sock_fd, (struct sockaddr *)&my_addr, sizeof(my_addr))<0)
         {
             printf("Binding socket failed.\n");
             exit(1);
@@ -157,6 +172,20 @@ int main(int argc, char *argv[])
         {
             printf("Setting socket OK.\n");
         }
+
+        /*************加入 multicast group 226.1.1.1***************/
+        group.imr_multiaddr.s_addr = inet_addr("226.1.1.1");
+        group.imr_interface.s_addr = htonl(INADDR_ANY);
+        if(setsockopt(sock_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group))<0)
+        {
+            printf("Adding multicast group failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Adding multicast group OK.\n");
+        }
+
 
         /*********開始傳送資料**********/
         printf("Sending file...\n");
@@ -284,10 +313,6 @@ int main(int argc, char *argv[])
             printf("fopen() failed.\n");
             exit(1);
         }
-        else
-        {
-            printf("fopen() OK.\n");
-        }
 
         /********************再接收檔案內容***********************/
         while(1)
@@ -385,17 +410,108 @@ int main(int argc, char *argv[])
             {
                 printf("Create thread OK.\n");
             }
-
-            
         }
-
-        
-        
     }
 
     /***************client unicast receive file******************/
     else if(mode && role)
     {
+        /*********Create a TCP socket to receive data************/
+        sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+        if(sock_fd<0)
+        {
+            printf("Opening TCP socket failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Opening TCP socket OK.\n");
+        }
+
+        /**************設定伺服器端位址結構**********************/
+        memset((char *)&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_port = htons(8787);
+        bcopy((char *)ip->h_addr, (char *)&server_addr.sin_addr.s_addr, ip->h_length);
+
+        /******************連接到伺服器**************************/
+        if(connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr))<0)
+        {
+            printf("Connecting to server failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Connecting to server OK.\n");
+        }
+
+        /******************成功連線，接收檔案********************/
+        printf("Receiving file...\n");
+
+        //先接收檔名
+        temp = read(sock_fd, buffer, BUFFER_SIZE);
+        if(temp<0)
+        {
+            printf("Receive file_name failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Receive file_name OK.\n");
+        }
+        buffer[temp] = '\0';
+
+        //開檔
+        fp = fopen(buffer, "wb");
+        if(fp==NULL)
+        {
+            printf("fopen() failed\n");
+            exit(1);
+        }
+
+        //傳送check
+        strcpy(buffer, "check");
+        if(write(sock_fd, buffer, strlen(buffer))<0)
+        {
+            printf("Sending check failed.\n");
+            exit(1);
+        }
+
+        //在接收檔案內容
+        while(1)
+        {   
+            //接收
+            temp = read(sock_fd, buffer, BUFFER_SIZE);
+            if(temp<0)
+            {
+                printf("Receive file_name failed.\n");
+                exit(1);
+            }
+            buffer[temp] = '\0';
+            fwrite(buffer, sizeof(char), temp, fp);
+            
+            //傳送check
+            strcpy(buffer, "check");
+            if(write(sock_fd, buffer, strlen(buffer))<0)
+            {
+                printf("Sending check failed.\n");
+                exit(1);
+            }
+
+            //檔案結尾
+            if(temp<BUFFER_SIZE)
+            {
+                break;
+            }
+
+            
+        }
+
+        printf("Receiving file OK.\n");
+
+        fclose(fp);
+        close(sock_fd);
+
     }
 
     return 0;
@@ -403,7 +519,88 @@ int main(int argc, char *argv[])
 
 void *connection_handler(void *para)
 {
+    int client_fd = *(int *)para;
+    int temp;
+    FILE *fp;
+
+    //開檔
+    fp = fopen(file_name, "rb");
+    if(fp==NULL)
+    {
+        printf("fopen() failed.\n");
+        exit(1);
+    }
+
+    //先傳檔名
+    strcpy(buffer, file_name);
+    if(write(client_fd, buffer, strlen(buffer))<0)
+    {
+        printf("Sending file_name failed.\n");
+        exit(1);
+    }
+    else
+    {
+        printf("Sending file_name OK.\n");
+    }
+
+    //接收check
+    temp = read(client_fd, buffer, BUFFER_SIZE);
+    if(temp<0)
+    {
+        printf("Receiving check failed.\n");
+        exit(1);
+    }
+    else
+    {
+        buffer[temp] = '\0';
+        if(strcmp(buffer, "check"))
+        {
+            printf("check failed.\n");
+            exit(1);
+        }
+    }
+    
+    //再傳檔案內容
+    while(!feof(fp))
+    {
+        //傳送
+        temp = fread(buffer, sizeof(char), BUFFER_SIZE, fp);
+        if(write(client_fd, buffer, temp)<0)
+        {
+            printf("Sending file failed.\n");
+            exit(1);
+        }
+
+        //接收check
+        temp = read(client_fd, buffer, BUFFER_SIZE);
+        if(temp<0)
+        {
+            printf("Receiving check failed.\n");
+            exit(1);
+        }
+        else
+        {
+            buffer[temp] = '\0';
+            if(strcmp(buffer, "check"))
+            {
+                printf("check failed.\n");
+                exit(1);
+            }
+        }
+    }
+    printf("Sending file OK.\n");
+
+    close(client_fd);
+
+    return 0;
 }
+
+
+
+
+
+
+
 
 
 
