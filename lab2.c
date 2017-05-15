@@ -10,6 +10,7 @@
 int main(int argc, char *argv[])
 {
     int reuse = 1;
+    int temp;
     char buffer[BUFFER_SIZE];
     FILE *fp;                           //檔案指標
     int sock_fd;
@@ -72,7 +73,14 @@ int main(int argc, char *argv[])
     //...
 
     //設定要傳送的檔案
-    if(!role)
+    if(!role && argc!=4)
+    {
+        printf("參數輸入錯誤\n");
+        printf("執行範例：./<執行檔名> <server or client> <multicast or unicast> (IP) (file_name)\n");
+        exit(1);
+
+    }
+    else if(!role)
     {
         strcpy(file_name, argv[3]);
 
@@ -254,7 +262,8 @@ int main(int argc, char *argv[])
         printf("Ready to receive...\n");
 
         /**********************先接收檔名*************************/
-        if(read(sock_fd, buffer, BUFFER_SIZE)<0)
+        temp = read(sock_fd, buffer, BUFFER_SIZE);
+        if(temp<0)
         {
             printf("Receiving file_name failed.\n");
             exit(1);
@@ -263,7 +272,7 @@ int main(int argc, char *argv[])
         {
             printf("Receiving file_name OK.\n");
         }
-printf("%s\n", buffer);
+        buffer[temp] = '\0';        //完全不知道為什麼不加這個會錯，好想知道..........
 
         //開檔
         fp = fopen(buffer, "wb");
@@ -276,6 +285,33 @@ printf("%s\n", buffer);
         {
             printf("fopen() OK.\n");
         }
+
+        /********************再接收檔案內容***********************/
+        while(1)
+        {
+            //接收
+            temp = read(sock_fd, buffer, BUFFER_SIZE);
+            if(temp<0)
+            {
+                printf("Receiving file_name failed.\n");
+                exit(1);
+            }
+            else
+            {
+                printf("Receiving file_name OK.\n");
+            }
+            buffer[temp] = '\0';        //完全不知道為什麼不加這個會錯，好想知道..........
+            fwrite(buffer, sizeof(char), temp, fp);
+
+            //檔案結尾
+            if(temp>=0 && temp<BUFFER_SIZE)
+            {
+                break;
+            }
+        }
+
+        fclose(fp);
+        close(sock_fd);
 
 
     }
