@@ -3,8 +3,12 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <pthread.h>
 
 #define BUFFER_SIZE 256
+
+/*****thread function******/
+void *connection_handler(void *para);
 
 
 int main(int argc, char *argv[])
@@ -13,10 +17,12 @@ int main(int argc, char *argv[])
     int temp;
     char buffer[BUFFER_SIZE];
     FILE *fp;                           //檔案指標
-    int sock_fd;
+    int sock_fd, client_fd;
     struct sockaddr_in group_addr;      //multicast 的 group 位址結構
     struct sockaddr_in my_addr;         //本地端位址結構
+    struct sockaddr_in client_addr;     //客戶端位址結構
     struct ip_mreq group;               //設定multicast的group
+    pthread_t thread_id;
 
     /*********程式參數*********/
     int mode;           //0:multicast, 1:unicast
@@ -313,11 +319,91 @@ int main(int argc, char *argv[])
     /***********server unicast multi_thread sned file************/
     else if(mode && !role)
     {
+        /***********Create a TCP socket to send data**************/
+        sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+        if(sock_fd<0)
+        {
+            printf("Opening TCP socket failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Opening TCP socket OK.\n");
+        }
+
+        /************設定本地端位址結構，以及socket***************/
+        memset((char *)&my_addr, 0, sizeof(my_addr));
+        my_addr.sin_family = AF_INET;
+        my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        my_addr.sin_port = htons(8787);
+
+        //bind
+        if(bind(sock_fd, (struct sockaddr *)&my_addr, sizeof(my_addr))<0)
+        {
+            printf("Binding socket failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Binding socke OK.\n");
+        }
+
+        //listen, 序列長度為5
+        if(listen(sock_fd, 5)<0)
+        {
+            printf("listen() failed.\n");
+            exit(1);
+        }
+        else
+        {
+            printf("Waiting for connection...\n");
+        }
+
+        //accept, create thread
+        while(1)
+        {
+            //accept
+            temp = sizeof(client_addr);
+            client_fd = accept(sock_fd, (struct sockaddr *)&client_addr, (socklen_t *)&temp);
+            if(client_fd<0)
+            {
+                printf("accept() failed.\n");
+                exit(1);
+            }
+            else
+            {
+                printf("Connection accepted.\n");
+            }
+
+            //create thread
+            if(pthread_create(&thread_id, NULL, connection_handler, (void *)&client_fd)<0)
+            {
+                printf("Create thread failed.\n");
+                exit(1);
+            }
+            else
+            {
+                printf("Create thread OK.\n");
+            }
+
+            
+        }
+
+        
+        
+    }
+
+    /***************client unicast receive file******************/
+    else if(mode && role)
+    {
     }
 
     return 0;
 }
 
+void *connection_handler(void *para)
+{
+}
 
 
 

@@ -5,7 +5,7 @@ Multicast_Programming homework
 使用說明
 
 編譯方法：
-gcc lab2.c -o <filename>
+gcc lab2.c -lpthread -o <filename>
 
 執行方法：
 ./<execute filename> <server or client> <multicast or unicast> (IP) (file_name)
